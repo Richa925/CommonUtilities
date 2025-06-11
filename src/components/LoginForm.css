@@ -1,0 +1,137 @@
+:root {
+  --truist-purple: #44227d;
+  --truist-light-purple: #6a3db3;
+  --truist-gray: #f4f4f4;
+  --truist-text: #333333;
+  --truist-success: #00875a;
+}
+
+body {
+  background-color: var(--truist-gray);
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+}
+
+.login-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.login-form {
+  max-width: 480px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 40px;
+  border-radius: 8px;
+  background-color: white;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.form-group {
+  margin-bottom: 24px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--truist-text);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 16px;
+  transition: border 0.3s ease;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: var(--truist-purple);
+  box-shadow: 0 0 0 1px var(--truist-purple);
+}
+
+.button-group {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 32px;
+}
+
+button {
+  padding: 16px 24px;
+  background-color: var(--truist-purple);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  min-width: 140px;
+  transition: background-color 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+button:hover {
+  background-color: var(--truist-light-purple);
+}
+
+button[type="button"] {
+  background-color: transparent;
+  color: var(--truist-purple);
+  border: 1px solid var(--truist-purple);
+}
+
+button[type="button"]:hover {
+  background-color: rgba(68, 34, 125, 0.05);
+}
+
+.auth-message {
+  margin-top: 24px;
+  padding: 16px;
+  text-align: center;
+  border-radius: 4px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.success {
+  background-color: rgba(0, 135, 90, 0.1);
+  color: var(--truist-success);
+}
+
+/* Additional Truist-like styling */
+.header h1 {
+  color: var(--truist-purple);
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+/* Media queries for responsiveness */
+@media (max-width: 600px) {
+  .login-form {
+    padding: 24px;
+  }
+  
+  button {
+    min-width: 120px;
+    padding: 14px 20px;
+  }
+  
+  .button-group {
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  button {
+    width: 100%;
+  }
+}

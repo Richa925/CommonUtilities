@@ -1,0 +1,28 @@
+.header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.header h1 {
+  color: #44227d; /* Truist purple */
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.header-subtitle {
+  color: #666;
+  font-size: 16px;
+  margin-top: 0;
+}
+
+/* Truist-inspired logo area */
+.logo-container {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.logo {
+  height: 40px;
+  margin-bottom: 16px;
+}
