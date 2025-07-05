@@ -18,9 +18,9 @@ from opensearchpy import OpenSearch, RequestsHttpConnection, AWSV4SignerAuth
 
 # Assuming these exist globally
 logger = print  # replace with actual logger if needed
-tkd_stores = {}
-tkd_status = {}
-tkd_table = None  # This should be your boto3 DynamoDB resource or table object
+awskd_stores = {}
+awskd_status = {}
+awskd_table = None  # This should be your boto3 DynamoDB resource or table object
 
 async def create_tkd(
     tkd_name: str,
