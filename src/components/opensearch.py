@@ -269,14 +269,14 @@ async def create_awskd(
 from fastapi import HTTPException
 from langchain.vectorstores import OpenSearchVectorSearch
 
-async def query_awskd(tkd_name: str, query: str, system_prompt: str = None, guardrail_id: str = None):
+async def query_awskd(awskd_name: str, query: str, system_prompt: str = None, guardrail_id: str = None):
     try:
-        logger.info(f"Attempting to query TKD: '{tkd_name}'")
+        logger.info(f"Attempting to query awskd: '{awskd_name}'")
 
         # Define OpenSearch vector store config
         VECTOR_FIELD = "vector-field"
         TEXT_FIELD = "page_content"
-        INDEX_NAME = tkd_name  # Use TKD name as index name
+        INDEX_NAME = awskd_name  # Use awskd name as index name
 
         # Load OpenSearch vector store
         vector_store = OpenSearchVectorSearch(
@@ -307,14 +307,14 @@ async def query_awskd(tkd_name: str, query: str, system_prompt: str = None, guar
             logger.info(f"Using provided guardrail ID: {guardrail_id} for query")
         else:
             try:
-                # Lookup TKD-specific guardrail from DynamoDB
-                response = tkd_table.scan(
-                    FilterExpression="tkd_name = :name",
-                    ExpressionAttributeValues={":name": tkd_name}
+                # Lookup awskd-specific guardrail from DynamoDB
+                response = awskd_table.scan(
+                    FilterExpression="awskd_name = :name",
+                    ExpressionAttributeValues={":name": awskd_name}
                 )
                 items = response.get('Items', [])
-                if items and 'tkd_guardrail_name' in items[0]:
-                    guardrail_name = items[0]['tkd_guardrail_name']
+                if items and 'awskd_guardrail_name' in items[0]:
+                    guardrail_name = items[0]['awskd_guardrail_name']
                     if guardrail_name == "DefaultGuardrail":
                         bedrock_client = boto3.client('bedrock-agent-runtime')
                         guardrails_response = bedrock_client.list_guardrails()
@@ -352,7 +352,7 @@ def create_system_prompt() -> str:
         str: Default system prompt.
     """
     return (
-        "You are an AI assistant that helps users understand content from the Truist Knowledge Domain (TKD). "
+        "You are an AI assistant that helps users understand content from the Truist Knowledge Domain (awskd). "
         "Respond clearly and concisely. Provide explanations or steps when needed."
     )
 
