@@ -269,7 +269,7 @@ async def create_awskd(
 from fastapi import HTTPException
 from langchain.vectorstores import OpenSearchVectorSearch
 
-async def query_tkd(tkd_name: str, query: str, system_prompt: str = None, guardrail_id: str = None):
+async def query_awskd(tkd_name: str, query: str, system_prompt: str = None, guardrail_id: str = None):
     try:
         logger.info(f"Attempting to query TKD: '{tkd_name}'")
 
