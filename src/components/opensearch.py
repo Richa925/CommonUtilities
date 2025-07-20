@@ -344,4 +344,42 @@ async def query_tkd(tkd_name: str, query: str, system_prompt: str = None, guardr
         logger.error(f"Error generating response: {str(inner_e)}")
         raise HTTPException(status_code=500, detail=f"Error generating response: {str(inner_e)}")
 
+def create_system_prompt() -> str:
+    """
+    Returns a default system prompt string used for LLM interaction.
+
+    Returns:
+        str: Default system prompt.
+    """
+    return (
+        "You are an AI assistant that helps users understand content from the Truist Knowledge Domain (TKD). "
+        "Respond clearly and concisely. Provide explanations or steps when needed."
+    )
+
+def build_llm_messages(query: str, context: str, system_prompt: str, guardrail_id: str = None) -> list[dict]:
+    """
+    Builds the message list for the LLM call.
+
+    Args:
+        query (str): The user's query.
+        context (str): Retrieved context from the vector store.
+        system_prompt (str): The prompt to instruct the LLM's behavior.
+        guardrail_id (str, optional): ID of the Bedrock Guardrail to apply (if any).
+
+    Returns:
+        list[dict]: Formatted list of messages for the LLM.
+    """
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": f"Here is some relevant context:\n\n{context}\n\nNow answer this:\n{query}"}
+    ]
+
+    # Optionally include guardrail directive as metadata or system instructions
+    if guardrail_id:
+        messages.append({
+            "role": "system",
+            "content": f"Apply safety and compliance filtering using Guardrail ID: {guardrail_id}."
+        })
+
+    return messages
 
