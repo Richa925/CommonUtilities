@@ -352,7 +352,7 @@ def create_system_prompt() -> str:
         str: Default system prompt.
     """
     return (
-        "You are an AI assistant that helps users understand content from the Truist Knowledge Domain (awskd). "
+        "You are an AI assistant that helps users understand content from the AWS Knowledge Domain (awskd). "
         "Respond clearly and concisely. Provide explanations or steps when needed."
     )
 
