@@ -265,3 +265,83 @@ async def create_awskd(
         }
         logger(f"Error creating awskd: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to create awskd: {str(e)}")
+
+from fastapi import HTTPException
+from langchain.vectorstores import OpenSearchVectorSearch
+
+async def query_tkd(tkd_name: str, query: str, system_prompt: str = None, guardrail_id: str = None):
+    try:
+        logger.info(f"Attempting to query TKD: '{tkd_name}'")
+
+        # Define OpenSearch vector store config
+        VECTOR_FIELD = "vector-field"
+        TEXT_FIELD = "page_content"
+        INDEX_NAME = tkd_name  # Use TKD name as index name
+
+        # Load OpenSearch vector store
+        vector_store = OpenSearchVectorSearch(
+            opensearch_url=aoss_endpoint,  # predefined AOSS endpoint
+            http_auth=auth,
+            timeout=300,
+            index_name=INDEX_NAME,
+            embedding_function=embeddings,  # your embedding function
+            vector_field=VECTOR_FIELD,
+            text_field=TEXT_FIELD,
+            connection_class=RequestsHttpConnection,
+            use_ssl=True,
+            verify_certs=True
+        )
+
+        # Build retriever
+        retriever = vector_store.as_retriever(
+            search_type="similarity",
+            search_kwargs={"k": 6}
+        )
+
+        # Get default prompt if not passed
+        if not system_prompt:
+            system_prompt = create_system_prompt()
+
+        # Handle guardrail override or lookup
+        if guardrail_id:
+            logger.info(f"Using provided guardrail ID: {guardrail_id} for query")
+        else:
+            try:
+                # Lookup TKD-specific guardrail from DynamoDB
+                response = tkd_table.scan(
+                    FilterExpression="tkd_name = :name",
+                    ExpressionAttributeValues={":name": tkd_name}
+                )
+                items = response.get('Items', [])
+                if items and 'tkd_guardrail_name' in items[0]:
+                    guardrail_name = items[0]['tkd_guardrail_name']
+                    if guardrail_name == "DefaultGuardrail":
+                        bedrock_client = boto3.client('bedrock-agent-runtime')
+                        guardrails_response = bedrock_client.list_guardrails()
+                        for guardrail in guardrails_response.get("guardrails", []):
+                            if guardrail.get("name") == "DefaultGuardrail":
+                                guardrail_id = guardrail.get("id")
+                                logger.info(f"Found DefaultGuardrail ID: {guardrail_id}")
+                                break
+            except Exception as e:
+                logger.error(f"Error looking up DefaultGuardrail: {str(e)}")
+
+        # Retrieve documents
+        docs = retriever.get_relevant_documents(query)
+
+        # Build LLM prompt
+        messages = build_llm_messages(query, docs, system_prompt, guardrail_id)
+
+        # Invoke LLM
+        response = llm.invoke(messages)
+
+        return {
+            "answer": response.content,
+            "context": docs
+        }
+
+    except Exception as inner_e:
+        logger.error(f"Error generating response: {str(inner_e)}")
+        raise HTTPException(status_code=500, detail=f"Error generating response: {str(inner_e)}")
+
+
