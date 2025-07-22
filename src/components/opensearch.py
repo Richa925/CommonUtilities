@@ -263,5 +263,5 @@ async def create_awskd(
             "message": str(e),
             "timestamp": datetime.now().isoformat()
         }
-        logger(f"Error creating awskd: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to create awskd: {str(e)}")
+        logger(f"Error creating TKD: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create TKD: {str(e)}")
