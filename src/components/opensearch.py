@@ -383,3 +383,115 @@ def build_llm_messages(query: str, context: str, system_prompt: str, guardrail_i
 
     return messages
 
+from langchain.vectorstores import OpenSearchVectorSearch  # Assuming you have this class
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from datetime import datetime
+from uuid import uuid4
+
+async def update_tkd_with_documents(tkd_name: str, documents: List[Document], chunk_size: int = 2000, chunk_overlap: int = 200):
+
+    try:
+        vector_store = tkd_stores.get(tkd_name)
+
+        if not vector_store:
+            logger.info(f"No existing vector store found for TKD `{tkd_name}`, creating new")
+            text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+            docs = text_splitter.split_documents(documents)
+
+            vector_store = OpenSearchVectorSearch.from_documents(
+                docs,
+                embedding=embeddings,
+                opensearch_url=os.getenv("OPENSEARCH_URL"),
+                index_name=tkd_name
+            )
+            tkd_stores[tkd_name] = vector_store
+
+            return f"Created new TKD `{tkd_name}` with {len(docs)} chunks from {len(documents)} documents"
+
+        # Existing index case
+        processed_sources = set()
+        docs_to_add = []
+        updated_file_metadata = []
+
+        for doc in documents:
+            if not doc.metadata.get('source'):
+                doc.metadata['source'] = f"doc-{str(uuid4())[:8]}"
+
+            source = doc.metadata['source']
+            processed_sources.add(source)
+
+            summary = await generate_document_summary(doc.page_content, source)
+            doc.metadata['summary'] = summary
+
+            updated_file_metadata.append({
+                "name": source,
+                "path": doc.metadata.get('path', 'unknown'),
+                "upload_date": datetime.now().isoformat(),
+                "summary": summary
+            })
+
+            text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+            split_docs = text_splitter.split_documents([doc])
+            docs_to_add.extend(split_docs)
+
+        # If we have sources to process, delete old docs
+        if processed_sources:
+            all_docs = vector_store.similarity_search("", k=10000)
+            docs_to_remove = [
+                doc for doc in all_docs if doc.metadata.get('source') in processed_sources
+            ]
+
+            if docs_to_remove:
+                logger.info(f"Removing {len(docs_to_remove)} existing document chunks for {len(processed_sources)} sources")
+                doc_ids_to_remove = [vector_store.docstore._get_id(doc) for doc in docs_to_remove]
+                if hasattr(vector_store, "delete"):
+                    vector_store.delete(doc_ids_to_remove)
+
+        if docs_to_add:
+            logger.info(f"Adding {len(docs_to_add)} new document chunks to TKD `{tkd_name}`")
+            vector_store.add_documents(docs_to_add)
+
+        # 🔄 DynamoDB Metadata Update (Unchanged)
+        try:
+            response = tkd_table.scan(
+                FilterExpression="tkd_name = :name",
+                ExpressionAttributeValues={":name": tkd_name}
+            )
+            items = response.get("Items", [])
+            if items:
+                tkd_id = items[0]["tkd_id"]
+                txn_id = f"txn-{str(uuid4())}"
+                current_time = datetime.now().isoformat()
+
+                tkd_table.update_item(
+                    Key={"tkd_id": tkd_id},
+                    UpdateExpression="SET txn_id = :txn, tkd_last_update_dt = :timestamp, tkd_chunk_count = :chunk_count",
+                    ExpressionAttributeValues={
+                        ":txn": txn_id,
+                        ":timestamp": current_time,
+                        ":chunk_count": len(docs_to_add)
+                    }
+                )
+                logger.info(f"Updated TKD `{tkd_name}` metadata in DynamoDB")
+
+                existing_metadata = items[0].get("tkd_input_files", [])
+                existing_files = {file.get("name"): file for file in existing_metadata}
+                for file_meta in updated_file_metadata:
+                    existing_files[file_meta["name"]] = file_meta
+                updated_files_list = list(existing_files.values())
+
+                tkd_table.update_item(
+                    Key={"tkd_id": tkd_id},
+                    UpdateExpression="SET tkd_input_files = :files",
+                    ExpressionAttributeValues={":files": updated_files_list}
+                )
+        except Exception as e:
+            logger.error(f"Error updating TKD metadata: {str(e)}")
+
+        return f"Updated TKD `{tkd_name}` with {len(docs_to_add)} document chunks, replaced {len(processed_sources)} sources"
+
+    except Exception as e:
+        logger.error(f"Error updating TKD with documents: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to update TKD with documents: {str(e)}")
+
+
