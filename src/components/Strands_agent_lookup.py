@@ -3,7 +3,7 @@ from strands import Agent
 from strands.models import BedrockModel
 
 # Load departments JSON dynamically
-def load_departments_json(file_path='Truist_Wealth_Dep_FINAL.json'):
+def load_departments_json(file_path='opsmetadta_FINAL.json'):
     with open(file_path, 'r') as f:
         return json.load(f)
 
