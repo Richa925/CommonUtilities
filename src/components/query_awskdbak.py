@@ -3,14 +3,14 @@ import time
 import os
 from typing import List
 import logging
-from department_agent import get_department_contact_from_response  # Updated import
+from Strands_agent_lookup import get_department_contact  # Import the Strands function
 
 logger = logging.getLogger(__name__)
 
 async def query_awskd(awskd_name: str, query: str, retriever):
     # Initial metadata setup
     safe_name = get_safe_dir_name(awskd_name)
-    metadata_file = f"metadata_{safe_name}/additional_metadata.json"
+    metadata_file = f"metadata_{safe_name}/add_metadata.json"
 
     # Check if metadata is in cache and not expired (1 hour cache duration)
     if awskd_name in metadata_cache:
@@ -44,6 +44,9 @@ async def query_awskd(awskd_name: str, query: str, retriever):
     # Get the documents from the retriever
     docs = retriever.invoke(query)
 
+    # Get department contact using Strands agent (inference-driven lookup)
+    contact_info = get_department_contact(query)
+
     # Format documents with a neutral title
     doc_texts = []
     for i, doc in enumerate(docs):
@@ -54,48 +57,19 @@ async def query_awskd(awskd_name: str, query: str, retriever):
     llm = load_llm(guardrail_id=guardrail_id)
     logger.info(f"Sending direct query to LLM {'with guardrail' if guardrail_id else ''}")
 
-    # Prepare messages with context and query (no metadata JSON in context)
+    # Prepare messages with context and query
     messages = [
-        {"type": "system", "content": system_prompt},
+        {"type": "system", "content": system_prompt},  # Define system_prompt as needed
         {"type": "human", "content": f"Here is the complete context:\n\n{docs_text}\n\nQuery: {query}"}
     ]
 
     response = llm.invoke(messages)
-    answer = response.content
 
-    # Get department contact using Strands agent based on the LLM response
-    contact_info = {"department": "None"}
-    if additional_metadata:
-        logger.info(f"Metadata for lookup: {json.dumps(additional_metadata[:100])}...")  # Log first 100 chars
-        contact_info = get_department_contact_from_response(answer, additional_metadata)
-        logger.info(f"Contact info retrieved: {contact_info}")
-
-    # Combine answer with contact info for display
-    if contact_info.get("department") != "None":
-        contact_details = (
-            f"\n\nRelevant Department Contact:\n"
-            f"- Department: {contact_info['department']}\n"
-            f"- Manager Name: {contact_info.get('manager_name', 'N/A')}\n"
-            f"- Manager Phone: {contact_info.get('manager_phone', 'N/A')}\n"
-            f"- Supervisor Name: {contact_info.get('supervisor_name', 'N/A')}\n"
-            f"- Supervisor Phone: {contact_info.get('supervisor_phone', 'N/A')}\n"
-            f"- Support Line: {contact_info.get('support_line', 'N/A')}"
-        )
-        combined_answer = f"{answer}{contact_details}"
-    else:
-        contact_details = (
-            "\n\nRelevant Department Contact:\n"
-            "- Department: Generic Wealth Brokerage\n"
-            "- Email: wealthbrokerage@example.com\n"
-            "- Support Line: 1-877-349-xxxx option 2, option 1"
-        )
-        combined_answer = f"{answer}{contact_details}"
-
-    # Return result with combined answer
+    # Combine RAG result with contact info
     result = {
-        "answer": combined_answer,
+        "answer": response.content,
         "context": docs,
-        "metadata_included": False,  # No metadata JSON in context
+        "metadata_included": False,  # No longer including full JSON
         "response_metadata": response.response_metadata,
         "contact_info": contact_info
     }
@@ -116,4 +90,4 @@ def decimal_default(obj):
     pass
 
 metadata_cache = {}  # Global cache dictionary
-system_prompt = "You are a helpful assistant for wealth management queries. Use the provided context to answer."  # Example system prompt
+system_prompt = "You are a helpful assistant for operations management queries. Use the provided context to answer."  # Example system prompt
